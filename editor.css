@@ -1,0 +1,80 @@
+.draggable {
+  cursor: move;
+  user-select: none;
+}
+
+.dragging {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Base state for all elements when drag mode is enabled */
+.drag-mode-enabled * {
+  transition: outline 0.3s ease, outline-offset 0.3s ease;
+  outline: 0px dashed transparent;
+  outline-offset: 2px;
+}
+
+/* Hover state only when drag mode is enabled */
+.drag-mode-enabled *:hover {
+  outline: 2px dashed #4CAF50;
+  outline-offset: 2px;
+  cursor: grab;
+}
+
+/* Style for when element is being dragged */
+.drag-mode-enabled .dragging {
+  cursor: grabbing !important;
+  opacity: 0.8;
+}
+
+/* Visual feedback for clickable elements */
+.drag-mode-enabled *:active {
+  cursor: grabbing;
+  outline: 2px solid #4CAF50;
+  outline-offset: 0px;
+}
+
+/* Selected element styling */
+.editor-selected {
+  outline: 2px solid rgb(255, 255, 255) !important;
+  outline-offset: 2px !important;
+  /* box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+  */
+  border-radius: 3px;
+  z-index: 1000;
+  box-shadow:
+  0 0 4px 2px rgba(255, 255, 255, 0.5),  /* Inner glow */
+    0 0 8px 4px rgba(255, 255, 255, 0.4),  /* Medium glow */
+    0 0 16px 8px rgba(255, 255, 255, 0.3); /* Outer glow */
+}
+
+/* Universal editor preview */
+.universal-editor-preview {
+  max-width: 100%;
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid #ccc;
+  margin: 10px 0;
+  padding: 10px;
+  background: #f5f5f5;
+}
+
+/* Prevent text selection in drag mode */
+.drag-mode-enabled {
+  user-select: none !important;
+}
+
+/* Prevent pointer events on links in drag mode */
+.drag-mode-enabled a {
+  pointer-events: none !important;
+}
+
+/* Make sure draggable elements show the grab cursor */
+.drag-mode-enabled *:not(a) {
+  cursor: grab !important;
+}
+
+.drag-mode-enabled .dragging {
+  cursor: grabbing !important;
+} 

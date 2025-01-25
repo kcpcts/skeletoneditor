@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Website Editor</title>
+  <style>
+    body {
+      width: 400px;
+      height: 600px;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+      background-color: #2b2b2b;
+      color: #ffffff;
+    }
+    
+    .tool-button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 4px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    
+    .tool-button:hover {
+      background-color: #45a049;
+    }
+    
+    .active {
+      background-color: #45a049;
+      box-shadow: 0 0 5px rgba(255,255,255,0.3);
+    }
+    
+    .editor-panel {
+      display: none;
+      margin-top: 15px;
+      background-color: #363636;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .editor-panel.visible {
+      display: block;
+    }
+    
+    .history-controls {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    
+    .history-controls button {
+      flex: 1;
+      padding: 5px;
+    }
+    
+    .element-preview {
+      background: #1e1e1e;
+      border: 1px solid #444;
+      padding: 10px;
+      margin: 10px 0;
+      max-height: 300px;
+      overflow: auto;
+      border-radius: 4px;
+    }
+    
+    .element-preview-container {
+      background: inherit;
+      min-height: 50px;
+      width: 100%;
+      position: relative;
+      overflow: auto;
+    }
+    
+    /* Ensure images don't overflow */
+    .element-preview-container img {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* Ensure links don't work in preview */
+    .element-preview-container a {
+      pointer-events: none;
+    }
+    
+    .element-info {
+      font-size: 12px;
+      color: #bbb;
+      margin: 5px 0;
+      padding: 10px;
+      background: #1e1e1e;
+      border-radius: 4px;
+    }
+    
+    h2, h3 {
+      color: #4CAF50;
+      margin-bottom: 15px;
+    }
+    
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .tools-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .tool-group {
+      background: #1e1e1e;
+      padding: 12px;
+      border-radius: 4px;
+      border: 1px solid #444;
+    }
+
+    .tool-group h4 {
+      color: #4CAF50;
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+
+    .tool-input {
+      width: 100%;
+      padding: 6px;
+      background: #2b2b2b;
+      border: 1px solid #444;
+      border-radius: 3px;
+      color: white;
+      margin: 5px 0;
+    }
+
+    .tool-input:focus {
+      outline: 1px solid #4CAF50;
+    }
+
+    .color-picker {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 30px;
+      padding: 0;
+      border: none;
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .color-picker::-webkit-color-swatch {
+      border: 1px solid #444;
+      border-radius: 3px;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider {
+      flex-grow: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: #444;
+      border-radius: 2px;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #4CAF50;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      min-width: 40px;
+      text-align: right;
+      font-size: 12px;
+    }
+
+    select.tool-input {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>Website Editor Tools</h2>
+  
+  <div class="history-controls">
+    <button id="undoBtn" class="tool-button">Undo</button>
+    <button id="redoBtn" class="tool-button">Redo</button>
+  </div>
+  
+  <button id="dragTool" class="tool-button">Enable Drag Mode</button>
+  
+  <div id="universalEditor" class="editor-panel">
+    <h3>Universal Editor</h3>
+    
+    <div id="elementPreview" class="element-preview">
+      <p>Alt + Click an element to edit it</p>
+    </div>
+
+    <div class="tools-container">
+      <!-- Text Styling -->
+      <div class="tool-group">
+        <h4>Text</h4>
+        <select id="fontFamily" class="tool-input">
+          <option value="inherit">Font Family</option>
+          <option value="Arial">Arial</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Georgia">Georgia</option>
+          <option value="monospace">Monospace</option>
+        </select>
+        <div class="slider-container">
+          <input type="range" id="fontSize" class="slider" min="8" max="72" value="16">
+          <span class="slider-value" id="fontSizeValue">16px</span>
+        </div>
+        <select id="fontWeight" class="tool-input">
+          <option value="normal">Normal</option>
+          <option value="bold">Bold</option>
+          <option value="lighter">Light</option>
+        </select>
+      </div>
+
+      <!-- Colors -->
+      <div class="tool-group">
+        <h4>Colors</h4>
+        <label>Text Color</label>
+        <input type="color" id="textColor" class="color-picker">
+        <label>Background</label>
+        <input type="color" id="backgroundColor" class="color-picker">
+      </div>
+
+      <!-- Spacing -->
+      <div class="tool-group">
+        <h4>Spacing</h4>
+        <div class="slider-container">
+          <label>Padding</label>
+          <input type="range" id="padding" class="slider" min="0" max="50" value="0">
+          <span class="slider-value" id="paddingValue">0px</span>
+        </div>
+        <div class="slider-container">
+          <label>Margin</label>
+          <input type="range" id="margin" class="slider" min="0" max="50" value="0">
+          <span class="slider-value" id="marginValue">0px</span>
+        </div>
+        <div class="slider-container">
+          <label>Line Height</label>
+          <input type="range" id="lineHeight" class="slider" min="100" max="200" value="150">
+          <span class="slider-value" id="lineHeightValue">1.5</span>
+        </div>
+      </div>
+
+      <!-- Accessibility -->
+      <div class="tool-group">
+        <h4>Accessibility</h4>
+        <select id="textAlign" class="tool-input">
+          <option value="left">Left Align</option>
+          <option value="center">Center</option>
+          <option value="right">Right Align</option>
+          <option value="justify">Justify</option>
+        </select>
+        <div class="slider-container">
+          <label>Contrast</label>
+          <input type="range" id="contrast" class="slider" min="100" max="200" value="100">
+          <span class="slider-value" id="contrastValue">100%</span>
+        </div>
+        <select id="letterSpacing" class="tool-input">
+          <option value="normal">Normal Spacing</option>
+          <option value="0.05em">Slight Spacing</option>
+          <option value="0.1em">More Spacing</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 
