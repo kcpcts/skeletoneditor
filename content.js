@@ -6,6 +6,8 @@ class WebsiteEditor {
     this.originalStyles = new Map();
     this.history = [];
     this.historyIndex = -1;
+    this.mouseRadius = 10; // Radius of influence in pixels
+    this.mouseMoveThrottled = this.throttle(this.handleMouseProximity.bind(this), 16);
     
     this.initialize();
   }
@@ -23,16 +25,18 @@ class WebsiteEditor {
           sendResponse({ enabled: this.isDragModeEnabled });
           break;
         case 'undo':
-          this.undo();
+          sendResponse(this.undo());
           break;
         case 'redo':
-          this.redo();
+          sendResponse(this.redo());
           break;
         case 'updateStyle':
           this.updateSelectedElementStyle(request.property, request.value);
           break;
       }
     });
+
+    document.addEventListener('mousemove', this.mouseMoveThrottled);
   }
 
   toggleDragMode(enabled) {
@@ -48,6 +52,8 @@ class WebsiteEditor {
       document.body.style.cursor = 'default';
       this.removeDragListeners();
       this.allowClicks();
+      // Remove all border overlays
+      document.querySelectorAll('.border-overlay').forEach(overlay => overlay.remove());
     }
   }
 
@@ -137,6 +143,24 @@ class WebsiteEditor {
 
   handleMouseUp() {
     if (this.draggedElement) {
+      const finalLeft = this.draggedElement.style.left;
+      const finalTop = this.draggedElement.style.top;
+      
+      // Only add to history if the element actually moved
+      if (finalLeft !== `${this.initialElementX}px` || finalTop !== `${this.initialElementY}px`) {
+        this.addToHistory({
+          element: this.draggedElement,
+          oldStyles: {
+            left: `${this.initialElementX}px`,
+            top: `${this.initialElementY}px`
+          },
+          newStyles: {
+            left: finalLeft,
+            top: finalTop
+          }
+        });
+      }
+      
       this.draggedElement.classList.remove('dragging');
       document.body.style.cursor = 'grab';
       this.draggedElement = null;
@@ -158,7 +182,13 @@ class WebsiteEditor {
       this.applyStyles(action.element, action.oldStyles);
       this.historyIndex--;
       this.saveState();
+      
+      // Return the current styles for preview update
+      return {
+        styles: action.oldStyles
+      };
     }
+    return null;
   }
 
   redo() {
@@ -167,11 +197,24 @@ class WebsiteEditor {
       const action = this.history[this.historyIndex];
       this.applyStyles(action.element, action.newStyles);
       this.saveState();
+      
+      // Return the current styles for preview update
+      return {
+        styles: action.newStyles
+      };
     }
+    return null;
   }
 
   applyStyles(element, styles) {
-    Object.assign(element.style, styles);
+    // Handle each style property appropriately
+    Object.entries(styles).forEach(([property, value]) => {
+      if (property === 'color') {
+        element.style.setProperty('color', value, 'important');
+      } else {
+        element.style[property] = value;
+      }
+    });
   }
 
   saveState() {
@@ -182,6 +225,19 @@ class WebsiteEditor {
   }
 
   selectElement(element) {
+    // If clicking the same element that's already selected, deselect it
+    if (this.selectedElement === element) {
+      this.selectedElement.classList.remove('editor-selected');
+      this.selectedElement = null;
+      
+      // Notify popup that element is deselected
+      chrome.runtime.sendMessage({
+        action: 'elementSelected',
+        details: null
+      });
+      return;
+    }
+    
     // Remove selection from previous element
     if (this.selectedElement) {
       this.selectedElement.classList.remove('editor-selected');
@@ -197,8 +253,6 @@ class WebsiteEditor {
     chrome.runtime.sendMessage({
       action: 'elementSelected',
       details: details
-    }, (response) => {
-      console.log('Selection message sent:', details); // Debug log
     });
   }
 
@@ -248,10 +302,18 @@ class WebsiteEditor {
     
     // Store the old styles for history
     const oldStyles = {};
-    oldStyles[property] = this.selectedElement.style[property];
+    if (property === 'color') {
+      oldStyles[property] = this.selectedElement.style.getPropertyValue('color');
+    } else {
+      oldStyles[property] = this.selectedElement.style[property];
+    }
     
     // Apply new style
-    this.selectedElement.style[property] = value;
+    if (property === 'color') {
+      this.selectedElement.style.setProperty('color', value, 'important');
+    } else {
+      this.selectedElement.style[property] = value;
+    }
     
     // Add to history
     const newStyles = {};
@@ -262,6 +324,42 @@ class WebsiteEditor {
       oldStyles: oldStyles,
       newStyles: newStyles
     });
+  }
+
+  handleMouseProximity(e) {
+    if (!this.isDragModeEnabled) return;
+
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    // Get all elements that could have outlines, excluding already selected elements
+    document.querySelectorAll('*:not(.editor-selected)').forEach(element => {
+      const rect = element.getBoundingClientRect();
+      
+      // Calculate distance from mouse to nearest edge of element
+      const distanceX = Math.max(rect.left - mouseX, 0, mouseX - rect.right);
+      const distanceY = Math.max(rect.top - mouseY, 0, mouseY - rect.bottom);
+      const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+
+      // Add or remove proximity class based on distance
+      if (distance <= this.mouseRadius) {
+        element.classList.add('in-mouse-range');
+      } else {
+        element.classList.remove('in-mouse-range');
+      }
+    });
+  }
+
+  // Utility function to throttle mouse move events
+  throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    }
   }
 }
 

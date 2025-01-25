@@ -10,43 +10,28 @@
 
 /* Base state for all elements when drag mode is enabled */
 .drag-mode-enabled * {
-  transition: outline 0.3s ease, outline-offset 0.3s ease;
   outline: 0px dashed transparent;
   outline-offset: 2px;
+  transition: outline 0.2s ease;
 }
 
-/* Hover state only when drag mode is enabled */
-.drag-mode-enabled *:hover {
+/* Only show green outline when element is in range */
+.drag-mode-enabled .in-mouse-range:hover {
   outline: 2px dashed #4CAF50;
   outline-offset: 2px;
   cursor: grab;
 }
 
-/* Style for when element is being dragged */
-.drag-mode-enabled .dragging {
-  cursor: grabbing !important;
-  opacity: 0.8;
-}
-
-/* Visual feedback for clickable elements */
-.drag-mode-enabled *:active {
-  cursor: grabbing;
-  outline: 2px solid #4CAF50;
-  outline-offset: 0px;
-}
-
-/* Selected element styling */
+/* Selected element styling (only for Alt+Click selected elements) */
 .editor-selected {
   outline: 2px solid rgb(255, 255, 255) !important;
   outline-offset: 2px !important;
-  /* box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
-  */
   border-radius: 3px;
   z-index: 1000;
   box-shadow:
-  0 0 4px 2px rgba(255, 255, 255, 0.5),  /* Inner glow */
-    0 0 8px 4px rgba(255, 255, 255, 0.4),  /* Medium glow */
-    0 0 16px 8px rgba(255, 255, 255, 0.3); /* Outer glow */
+    0 0 4px 2px rgba(255, 255, 255, 0.5),
+    0 0 8px 4px rgba(255, 255, 255, 0.4),
+    0 0 16px 8px rgba(255, 255, 255, 0.3);
 }
 
 /* Universal editor preview */
@@ -78,3 +63,32 @@
 .drag-mode-enabled .dragging {
   cursor: grabbing !important;
 } 
+
+@keyframes green-animation {
+  0% {
+    background-position: 0%;
+  }
+  100% {
+    background-position: 400%;
+  }
+}
+
+.green-animation {
+  background: linear-gradient(to right, #ff0000, #ffa500, #ffff00, #008000, #0000ff, #4b0082, #ee82ee, #ff0000);
+  -webkit-background-clip: text;
+  background-clip: text;
+  background-size: 400%;
+  color: transparent;
+  animation: green-animation 5s linear infinite;
+}
+
+.border-overlay {
+  pointer-events: none !important;
+  mix-blend-mode: overlay;
+}
+
+/* Ensure elements can have overlays */
+.drag-mode-enabled *:hover,
+.editor-selected {
+  isolation: isolate;
+}

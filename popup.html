@@ -3,15 +3,28 @@
 <head>
   <title>AI Website Editor</title>
   <style>
-    body {
+    * {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
       width: 400px;
       height: 600px;
       padding: 15px;
-      font-family: Arial, sans-serif;
       background-color: #2b2b2b;
       color: #ffffff;
+      overflow-y: auto;
+      margin: 0;
+    }
+
+    /* Remove all scrollbars */
+    ::-webkit-scrollbar {
+      display: none;
     }
     
+    /* Add alternative scrolling behavior */
+    body, .tools-container, .element-preview, .element-preview-container {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+
     .tool-button {
       width: 100%;
       padding: 10px;
@@ -21,11 +34,18 @@
       background-color: #4CAF50;
       color: white;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: all 0.2s ease;
+      transform: scale(1);
     }
     
     .tool-button:hover {
       background-color: #45a049;
+      transform: scale(0.98);
+    }
+    
+    .tool-button:active {
+      transform: scale(0.95);
+      background-color: #3d8b40;
     }
     
     .active {
@@ -33,13 +53,19 @@
       box-shadow: 0 0 5px rgba(255,255,255,0.3);
     }
     
+    .active:hover {
+      background-color: #3d8b40;
+    }
+    
     .editor-panel {
       display: none;
       margin-top: 15px;
       background-color: #363636;
-      padding: 15px;
+      padding: 12px;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      max-height: 80vh;   /* Limit maximum height relative to viewport */
+      overflow: auto;
     }
     
     .editor-panel.visible {
@@ -60,21 +86,27 @@
     .element-preview {
       background: #1e1e1e;
       border: 1px solid #444;
-      padding: 10px;
-      margin: 10px 0;
-      max-height: 300px;
-      overflow: auto;
+      padding: 15px;
+      margin: 8px 0;
+      height: 200px;
+      overflow: hidden;
       border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .element-preview-container {
       background: inherit;
-      min-height: 50px;
-      width: 100%;
       position: relative;
-      overflow: auto;
+      max-width: 100%;
+      max-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
     }
-    
+
     /* Ensure images don't overflow */
     .element-preview-container img {
       max-width: 100%;
@@ -109,84 +141,155 @@
     .tools-container {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin: 15px 0;
+      gap: 8px;
+      margin: 12px 0;
+      overflow-y: auto;
+      padding-right: 0;
     }
 
     .tool-group {
       background: #1e1e1e;
-      padding: 12px;
+      padding: 8px;
       border-radius: 4px;
       border: 1px solid #444;
     }
 
     .tool-group h4 {
       color: #4CAF50;
-      margin: 0 0 10px 0;
-      font-size: 14px;
+      margin: 0 0 6px 0;
+      font-size: 13px;
+      font-weight: 500;
     }
 
-    .tool-input {
-      width: 100%;
-      padding: 6px;
-      background: #2b2b2b;
-      border: 1px solid #444;
-      border-radius: 3px;
-      color: white;
-      margin: 5px 0;
+    /* Color picker container */
+    .color-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0;
     }
 
-    .tool-input:focus {
-      outline: 1px solid #4CAF50;
+    .color-control label {
+      flex: 1;
+      font-size: 12px;
     }
 
     .color-picker {
       -webkit-appearance: none;
-      width: 100%;
-      height: 30px;
+      width: 24px;  /* Make width and height equal */
+      height: 24px;
       padding: 0;
       border: none;
-      border-radius: 3px;
+      border-radius: 50%;
       background: transparent;
       cursor: pointer;
+      overflow: hidden;
     }
 
     .color-picker::-webkit-color-swatch {
       border: 1px solid #444;
-      border-radius: 3px;
+      border-radius: 50%;
+      padding: 0;  /* Remove any padding */
     }
 
+    .color-picker::-webkit-color-swatch-wrapper {
+      padding: 0;  /* Remove wrapper padding */
+    }
+
+    /* Make sliders more compact */
     .slider-container {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      margin: 4px 0;
+    }
+
+    .slider-container label {
+      font-size: 12px;
+      min-width: 70px;
     }
 
     .slider {
-      flex-grow: 1;
+      flex: 1;
       -webkit-appearance: none;
-      height: 4px;
+      height: 3px;
       background: #444;
       border-radius: 2px;
     }
 
     .slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
+      width: 12px;
+      height: 12px;
       background: #4CAF50;
       border-radius: 50%;
       cursor: pointer;
     }
 
     .slider-value {
-      min-width: 40px;
+      min-width: 35px;
       text-align: right;
-      font-size: 12px;
+      font-size: 11px;
     }
 
-    select.tool-input {
-      cursor: pointer;
+    /* Make select inputs more compact */
+    .tool-input {
+      width: 100%;
+      padding: 4px;
+      background: #2b2b2b;
+      border: 1px solid #444;
+      border-radius: 3px;
+      color: white;
+      font-size: 12px;
+      margin: 2px 0;
+    }
+
+    h1 {
+      margin: 0;
+      margin-bottom: 12px;
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    /* Add more specific selector for the animation */
+    .editor-panel h1.green-animation {
+      background: linear-gradient(to right, #ffffff, #00ff1e, #00ff1e,#00ff1e,#00ff1e,#00ff1e,#00ff1e,#00ff1e,#00ff1e,#00ff1e,#00ff1e,#fffff4, #ffffff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      background-size: 400%;
+      color: transparent;
+      animation: green-animation 10s linear infinite;
+    }
+
+    @keyframes green-animation {
+      0% {
+        background-position: 0%;
+      }
+      100% {
+        background-position: 400%;
+      }
+    }
+
+    /* Make color pickers and sliders more responsive too */
+    .color-picker:active {
+      transform: scale(0.9);
+    }
+
+    .slider::-webkit-slider-thumb:active {
+      transform: scale(0.9);
+    }
+
+    /* Add transitions to all interactive elements */
+    .color-picker, .slider::-webkit-slider-thumb {
+      transition: transform 0.2s ease;
+    }
+
+    /* Initial message styling */
+    .initial-message {
+      color: #888;
+      text-align: center;
+      padding: 20px;
+      font-style: italic;
     }
   </style>
 </head>
@@ -198,13 +301,13 @@
     <button id="redoBtn" class="tool-button">Redo</button>
   </div>
   
-  <button id="dragTool" class="tool-button">Enable Drag Mode</button>
+  <button id="dragTool" class="tool-button">Enable Editor Mode</button>
   
   <div id="universalEditor" class="editor-panel">
-    <h3>Universal Editor</h3>
+    <h1 class="green-animation">Element Editor</h1>
     
     <div id="elementPreview" class="element-preview">
-      <p>Alt + Click an element to edit it</p>
+      <p>Alt/Option + Click on an element to edit it</p>
     </div>
 
     <div class="tools-container">
@@ -233,10 +336,14 @@
       <!-- Colors -->
       <div class="tool-group">
         <h4>Colors</h4>
-        <label>Text Color</label>
-        <input type="color" id="textColor" class="color-picker">
-        <label>Background</label>
-        <input type="color" id="backgroundColor" class="color-picker">
+        <div class="color-control">
+          <label>Text Color</label>
+          <input type="color" id="textColor" class="color-picker">
+        </div>
+        <div class="color-control">
+          <label>Background</label>
+          <input type="color" id="backgroundColor" class="color-picker">
+        </div>
       </div>
 
       <!-- Spacing -->

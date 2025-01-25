@@ -27,7 +27,7 @@ class PopupUI {
       }, (response) => {
         if (response && response.enabled) {
           this.dragTool.classList.add('active');
-          this.dragTool.textContent = 'Disable Drag Mode';
+          this.dragTool.textContent = 'Disable Editor Mode';
         }
       });
     });
@@ -38,7 +38,7 @@ class PopupUI {
       this.dragTool.classList.toggle('active');
       const isActive = this.dragTool.classList.contains('active');
       
-      this.dragTool.textContent = isActive ? 'Disable Drag Mode' : 'Enable Drag Mode';
+      this.dragTool.textContent = isActive ? 'Disable Editor Mode' : 'Enable Editor Mode';
       
       chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, {
@@ -52,13 +52,39 @@ class PopupUI {
   setupHistoryControls() {
     this.undoBtn.addEventListener('click', () => {
       chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'undo' });
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'undo' }, (response) => {
+          // Update preview with the new state if available
+          if (response && response.styles) {
+            Object.entries(response.styles).forEach(([property, value]) => {
+              if (this.previewContainer) {
+                if (property === 'color') {
+                  this.previewContainer.style.setProperty('color', value, 'important');
+                } else {
+                  this.previewContainer.style[property] = value;
+                }
+              }
+            });
+          }
+        });
       });
     });
     
     this.redoBtn.addEventListener('click', () => {
       chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'redo' });
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'redo' }, (response) => {
+          // Update preview with the new state if available
+          if (response && response.styles) {
+            Object.entries(response.styles).forEach(([property, value]) => {
+              if (this.previewContainer) {
+                if (property === 'color') {
+                  this.previewContainer.style.setProperty('color', value, 'important');
+                } else {
+                  this.previewContainer.style[property] = value;
+                }
+              }
+            });
+          }
+        });
       });
     });
   }
@@ -85,28 +111,99 @@ class PopupUI {
   }
   
   updateUniversalEditor(details) {
-    if (!details) return;
+    if (!details) {
+      // Handle deselection
+      this.universalEditor.classList.remove('visible');
+      this.elementPreview.innerHTML = '<div class="initial-message">Alt/Option + Click on an element to edit it</div>';
+      return;
+    }
     
     console.log('Updating UI with details:', details);
     this.universalEditor.classList.add('visible');
-    this.elementTag.textContent = details.tagName.toLowerCase();
-    this.elementClasses.textContent = details.classes.join(' ') || 'None';
     
-    // Create a container for the preview with original styles
-    const previewContainer = document.createElement('div');
-    previewContainer.className = 'element-preview-container';
-    
-    // Apply the original element's styles to maintain appearance
-    Object.entries(details.styles).forEach(([property, value]) => {
-      previewContainer.style[property] = value;
-    });
-    
-    // Set the actual content
-    previewContainer.innerHTML = details.html;
-    
-    // Clear and update the preview
+    // Clear the preview area
     this.elementPreview.innerHTML = '';
-    this.elementPreview.appendChild(previewContainer);
+    
+    if (details.html) {
+      // Create a container for the preview with original styles
+      const previewContainer = document.createElement('div');
+      previewContainer.className = 'element-preview-container';
+      
+      // Apply the original element's styles to maintain appearance
+      Object.entries(details.styles).forEach(([property, value]) => {
+        // Skip dimension styles that might cause overflow
+        if (!['width', 'height'].includes(property)) {
+          previewContainer.style[property] = value;
+        }
+      });
+
+      // Set the actual content
+      previewContainer.innerHTML = details.html;
+      this.elementPreview.appendChild(previewContainer);
+
+      // Store the preview container for later updates
+      this.previewContainer = previewContainer;
+    } else {
+      // Show the initial message if no element is selected
+      const message = document.createElement('div');
+      message.className = 'initial-message';
+      message.textContent = 'Alt/Option + Click on an element to edit it';
+      this.elementPreview.appendChild(message);
+    }
+
+    // Initialize tool values based on current styles
+    this.initializeToolValues(details.styles);
+  }
+
+  initializeToolValues(styles) {
+    if (!styles) return;
+
+    // Set font family
+    const fontFamily = document.getElementById('fontFamily');
+    if (fontFamily && styles.fontFamily) {
+      fontFamily.value = styles.fontFamily.split(',')[0].replace(/['"]/g, '') || 'inherit';
+    }
+
+    // Set font size
+    const fontSize = document.getElementById('fontSize');
+    if (fontSize && styles.fontSize) {
+      const size = parseInt(styles.fontSize);
+      fontSize.value = size || 16;
+      document.getElementById('fontSizeValue').textContent = `${size}px`;
+    }
+
+    // Set font weight
+    const fontWeight = document.getElementById('fontWeight');
+    if (fontWeight && styles.fontWeight) {
+      fontWeight.value = styles.fontWeight;
+    }
+
+    // Set colors
+    const textColor = document.getElementById('textColor');
+    if (textColor && styles.color) {
+      textColor.value = this.rgbToHex(styles.color);
+    }
+
+    const bgColor = document.getElementById('backgroundColor');
+    if (bgColor && styles.backgroundColor) {
+      bgColor.value = this.rgbToHex(styles.backgroundColor);
+    }
+
+    // Helper function to convert RGB to HEX
+    this.rgbToHex = (rgb) => {
+      // Handle rgba strings
+      const rgbValues = rgb.match(/\d+/g);
+      if (!rgbValues) return '#000000';
+      
+      const r = parseInt(rgbValues[0]);
+      const g = parseInt(rgbValues[1]);
+      const b = parseInt(rgbValues[2]);
+      
+      return '#' + [r, g, b].map(x => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      }).join('');
+    };
   }
 
   initializeTools() {
@@ -145,6 +242,11 @@ class PopupUI {
     const control = document.getElementById(id);
     control.addEventListener(event, () => {
       const value = valueTransform(control.value);
+      // Update preview
+      if (this.previewContainer) {
+        this.previewContainer.style[styleProperty] = value;
+      }
+      // Update actual element
       this.updateElementStyle(styleProperty, value);
     });
   }
